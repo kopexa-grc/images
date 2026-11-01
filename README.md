@@ -1,5 +1,7 @@
 # Kopexa hardened container images
 
+[![build](https://github.com/kopexa-grc/images/actions/workflows/build.yml/badge.svg)](https://github.com/kopexa-grc/images/actions/workflows/build.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/kopexa-grc/images/badge)](https://scorecard.dev/viewer/?uri=github.com/kopexa-grc/images) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Minimal, non-root, signed container images — built transparently in the open
 with [apko](https://github.com/chainguard-dev/apko) and
 [melange](https://github.com/chainguard-dev/melange) from the open
