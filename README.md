@@ -15,7 +15,7 @@ can pin `8.4.27` or `1.27.3` — not just `latest`.
 | Image | Tags | Purpose |
 |---|---|---|
 | `ghcr.io/kopexa-grc/php-apache` | `8.4`, `8.4.x`, `8`, `latest` | Apache httpd 2.4 + mod_php (prefork), port 8080, uid 65532 |
-| `ghcr.io/kopexa-grc/php-apache-dev` | same tags with `-dev` suffix | Build stage: + shell, composer, git, Node.js 24 |
+| `ghcr.io/kopexa-grc/php-apache` | `8.4-dev`, `8.4.x-dev`, `latest-dev` | Build stage: + shell, composer, git, Node.js 24 |
 | `ghcr.io/kopexa-grc/go` | `1.27`, `1.27.x`, `1`, `latest`, `1.26`, `1.26.x` | Go toolchain for build stages (follows Go's release policy) |
 | `ghcr.io/kopexa-grc/static` | `latest` | Runtime for static binaries: no shell, no libc, no package manager |
 | `ghcr.io/kopexa-grc/restic` | `0.19`, `0.19.x`, `latest` | restic backup client (+ busybox for job scripting) |
@@ -38,7 +38,7 @@ ENTRYPOINT ["/app"]
 ### Example: PHP application
 
 ```dockerfile
-FROM ghcr.io/kopexa-grc/php-apache-dev:8.4 AS build
+FROM ghcr.io/kopexa-grc/php-apache:8.4-dev AS build
 WORKDIR /app
 COPY . .
 RUN composer install --no-dev --classmap-authoritative

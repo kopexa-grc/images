@@ -35,8 +35,7 @@ jobs:
           set -euo pipefail
           cutoff="$(date -u -d "-${KEEP_DAYS} days" +%s)"
           for dir in images/*/; do
-            img="$(basename "$dir")"; [[ "$img" == _base ]] && continue
-            for name in "$img" "$img-dev"; do
+            name="$(basename "$dir")"; [[ "$name" == _base ]] && continue
               gh api "/orgs/$ORG/packages/container/$name/versions" --paginate 2>/dev/null \
                 --jq '.[] | [.id, .created_at, (.metadata.container.tags | join(","))] | @tsv' \
               | while IFS=$'\t' read -r id created tags; do
@@ -50,5 +49,4 @@ jobs:
                   echo "delete $name version $id ($tags, $created)"
                   [[ "$DRY_RUN" == "true" ]] || gh api -X DELETE "/orgs/$ORG/packages/container/$name/versions/$id"
                 done
-            done
           done

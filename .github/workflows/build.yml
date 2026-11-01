@@ -98,6 +98,8 @@ jobs:
       IMAGE: ${{ matrix.image }}
       VERSION: ${{ matrix.version }}
       VARIANT: ${{ matrix.variant }}
+      # Local/CI name; variants are published to the same repository with a
+      # tag suffix (php-apache:8.4-dev), like the official images.
       NAME: ${{ matrix.image }}${{ matrix.variant && format('-{0}', matrix.variant) }}
       PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     steps:
@@ -168,7 +170,7 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           refs=()
-          while read -r t; do refs+=("$REGISTRY/$NAME:$t"); done < .build/tags.txt
+          while read -r t; do refs+=("$REGISTRY/$IMAGE:$t"); done < .build/tags.txt
           apko publish .build/config.yaml "${refs[@]}" \
             --lockfile .build/config.lock.json \
             -r "$PWD/.build/packages" -k .build/local-melange.rsa.pub \
@@ -194,6 +196,6 @@ jobs:
         if: env.PUBLISH == 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.NAME }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE }}
           subject-digest: ${{ steps.publish.outputs.digest }}
           push-to-registry: true
