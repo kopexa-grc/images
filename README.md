@@ -2,6 +2,8 @@
 
 [![build](https://github.com/kopexa-grc/images/actions/workflows/build.yml/badge.svg)](https://github.com/kopexa-grc/images/actions/workflows/build.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/kopexa-grc/images/badge)](https://scorecard.dev/viewer/?uri=github.com/kopexa-grc/images) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
+> Maintained by **[Kopexa](https://kopexa.com)** — GRC and compliance automation. Part of our open source work on transparent, verifiable software supply chains.
+
 Minimal, non-root, signed container images — built transparently in the open
 with [apko](https://github.com/chainguard-dev/apko) and
 [melange](https://github.com/chainguard-dev/melange) from the open
@@ -121,3 +123,7 @@ packages under their own licenses — see [LICENSING.md](LICENSING.md).
 
 This project is not affiliated with or endorsed by Chainguard. "Wolfi" and
 "Chainguard" are used only to describe where packages and tools come from.
+
+---
+
+Made with care by [Kopexa](https://kopexa.com) · [kopexa-grc on GitHub](https://github.com/kopexa-grc)
