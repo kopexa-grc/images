@@ -56,21 +56,37 @@ Runtime images are compatible with the **restricted** profile:
 `seccompProfile: RuntimeDefault`, `readOnlyRootFilesystem: true` (+ `/tmp`
 `emptyDir`).
 
-## FIPS 140-3 — not claimed
+## FIPS 140-3
 
-The images are **not** FIPS 140-3 validated, and we make no FIPS claims.
-A valid claim requires a crypto module with a CMVP certificate, built and
-operated exactly as described in that certificate's security policy, with
-non-approved algorithms disabled.
+### Go (`go:*-fips`) — available
 
-Planned `-fips` variants:
+The `-fips` variants of the Go image build every binary against the
+**Go Cryptographic Module selected by `GOFIPS140=certified`** — currently
+**v1.0.0, CMVP certificate #5247** — and enable FIPS 140-3 mode by default
+(`DefaultGODEBUG=fips140=on`). In this mode the module runs its integrity and
+known-answer self-tests, `crypto/rand` uses an SP 800-90A DRBG, and
+`crypto/tls` negotiates only approved algorithms
+([Go documentation](https://go.dev/doc/security/fips140)).
 
-- **OpenSSL-based images** (`php-apache`): OpenSSL FIPS provider at a
-  CMVP-validated version, configured as the default provider, FIPS mode
-  enforced, verified with a CI test that non-approved algorithms fail.
-- **Go images**: Go's native FIPS 140-3 module (`GOFIPS140`, `GODEBUG=fips140=on`).
-  We will only label images "FIPS" once the module version shipped has a
-  certificate, and document which one.
+Wolfi's Go packages do not ship the frozen module snapshots, so we add them
+from the official Go source release (`packages/go-fips140-snapshots`). Each
+snapshot is verified against the release tarball's SHA-256 and against the
+checksums in Go's own `fips140.sum`; CI checks that a test binary reports
+FIPS mode and was built with the certified module version.
+
+What this does **not** claim: that your application is FIPS 140-3
+compliant. That depends on using the module as described in its Security
+Policy, running on a validated operating environment, and using only
+approved algorithms in your code and dependencies. `GODEBUG=fips140=only`
+helps find non-approved algorithm use during testing (not for production).
+
+### OpenSSL-based images (`php-apache`) — not available yet
+
+The open Wolfi repository has no OpenSSL FIPS provider. Offering a `-fips`
+variant requires building the provider at a CMVP-validated OpenSSL version
+exactly as its Security Policy prescribes and enforcing it as the default
+provider. Until then we make **no FIPS claim** for `php-apache` or images
+built on it.
 
 ## DISA STIG — not claimed
 

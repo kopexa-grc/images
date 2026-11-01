@@ -2,4 +2,4 @@
 versions: ["1.27", "1.26"]
 latest: "1.27"
 version-package: go-{{version}}
-variants: [""]
+variants: ["", "fips"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke + hardening tests for php-apache (runtime and dev variants).
 source "$(dirname "$0")/../../../scripts/lib-test.sh"
-variant="${2:-}"
+variant="${3:-}"
 
 for ext in apcu bcmath ctype curl dom exif fileinfo gd iconv intl mbstring mysqli \
            openssl pcntl PDO pdo_mysql posix SimpleXML sockets sodium xml zip "Zend OPcache"; do

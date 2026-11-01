@@ -21,6 +21,7 @@ can pin `8.4.27` or `1.27.3` — not just `latest`.
 | `ghcr.io/kopexa-grc/php-apache` | `8.4`, `8.4.x`, `8`, `latest` | Apache httpd 2.4 + mod_php (prefork), port 8080, uid 65532 |
 | `ghcr.io/kopexa-grc/php-apache` | `8.4-dev`, `8.4.x-dev`, `latest-dev` | Build stage: + shell, composer, git, Node.js 24 |
 | `ghcr.io/kopexa-grc/go` | `1.27`, `1.27.x`, `1`, `latest`, `1.26`, `1.26.x` | Go toolchain for build stages (follows Go's release policy) |
+| `ghcr.io/kopexa-grc/go` | `1.27-fips`, `1.27.x-fips`, `latest-fips`, `1.26-fips`, … | Same, building against the **CMVP-validated Go Cryptographic Module** with FIPS 140-3 mode on by default |
 | `ghcr.io/kopexa-grc/static` | `latest` | Runtime for static binaries: no shell, no libc, no package manager |
 | `ghcr.io/kopexa-grc/restic` | `0.19`, `0.19.x`, `latest` | restic backup client (+ busybox for job scripting) |
 
@@ -38,6 +39,25 @@ FROM ghcr.io/kopexa-grc/static:latest
 COPY --from=build /out/app /app
 ENTRYPOINT ["/app"]
 ```
+
+### Example: FIPS 140-3 mode for a Go service
+
+```dockerfile
+FROM ghcr.io/kopexa-grc/go:1.27-fips AS build
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -o /out/app ./cmd/app
+
+FROM ghcr.io/kopexa-grc/static:latest
+COPY --from=build /out/app /app
+ENTRYPOINT ["/app"]
+```
+
+The binary links the Go Cryptographic Module selected by
+`GOFIPS140=certified` (currently v1.0.0, CMVP certificate #5247) and runs in
+FIPS 140-3 mode by default — check with `go version -m app | grep GOFIPS140`
+or `crypto/fips140.Enabled()`. See [docs/hardening.md](docs/hardening.md#fips-140-3)
+for what this does and does not mean.
 
 ### Example: PHP application
 

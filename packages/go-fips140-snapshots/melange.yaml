@@ -1,0 +1,45 @@
+# Frozen Go Cryptographic Module snapshots (FIPS 140-3), taken unchanged from
+# the official Go source distribution. Wolfi's go-* packages ship
+# lib/fips140/fips140.sum but not the snapshot zips and alias files, so
+# GOFIPS140=certified / v1.0.0 would not work without this package.
+#
+# The zips are verified twice: against the tarball's SHA-256 below and
+# against the checksums in fips140.sum (which Go itself also enforces).
+#
+# Update: bump version + expected-sha256 to the newest Go release
+# (https://go.dev/dl/?mode=json, kind "source") when certified.txt or
+# inprocess.txt change, e.g. once v1.26.0 obtains its CMVP certificate.
+package:
+  name: kopexa-go-fips140-snapshots
+  version: "1.27.3"
+  epoch: 0
+  description: Go Cryptographic Module snapshots for GOFIPS140 (from the official Go distribution)
+  copyright:
+    - license: BSD-3-Clause
+  options:
+    no-provides: true
+    no-depends: true
+
+environment:
+  contents:
+    repositories:
+      - https://packages.wolfi.dev/os
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    packages:
+      - busybox
+      - ca-certificates-bundle
+
+pipeline:
+  - uses: fetch
+    with:
+      uri: https://go.dev/dl/go${{package.version}}.src.tar.gz
+      expected-sha256: 6e7749035cf360f06b2575d162ea79df9fda8ef671889e5c375f8e50777f26bb
+  - runs: |
+      cd lib/fips140
+      # Every snapshot zip must match the checksum recorded in fips140.sum.
+      grep -v '^#' fips140.sum | awk 'NF {print $2 "  " $1}' | sha256sum -c -
+      dest="${{targets.destdir}}/usr/lib/go/lib/fips140"
+      install -d "$dest"
+      for f in *.zip *.txt; do install -m644 "$f" "$dest/$f"; done
+      ls -l "$dest"

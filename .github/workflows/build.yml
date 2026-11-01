@@ -128,7 +128,7 @@ jobs:
           docker load -i .build/image.tar
 
       - name: Test
-        run: '"images/$IMAGE/tests/test.sh" "kopexa/$NAME:ci-amd64" "${VARIANT:-$VERSION}"'
+        run: '"images/$IMAGE/tests/test.sh" "kopexa/$NAME:ci-amd64" "$VERSION" "$VARIANT"'
 
       - name: Vulnerability gate (high/critical with a fix available)
         run: |

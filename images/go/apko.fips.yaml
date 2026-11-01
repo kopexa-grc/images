@@ -1,0 +1,14 @@
+# go:*-fips — the toolchain links the CMVP-validated Go Cryptographic Module
+# (GOFIPS140=certified, currently v1.0.0, CMVP certificate #5247) and
+# enables FIPS 140-3 mode by default in every binary it builds.
+# See docs/hardening.md for what this does and does not claim.
+contents:
+  packages:
+    - kopexa-go-fips140-snapshots
+
+environment:
+  GOFIPS140: certified
+
+annotations:
+  org.opencontainers.image.title: go-fips
+  org.opencontainers.image.description: Go {{version}} toolchain building with the CMVP-validated Go Cryptographic Module (GOFIPS140=certified)
