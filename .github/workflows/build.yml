@@ -110,12 +110,13 @@ jobs:
 
       - name: Render config and lock package versions
         run: |
+          mkdir -p .build/sbom .build/sbom-publish
           scripts/render.sh "$IMAGE" "$VERSION" "$VARIANT" > .build/config.yaml
           apko lock .build/config.yaml --output .build/config.lock.json \
             -r "$PWD/.build/packages" -k .build/local-melange.rsa.pub
           scripts/tags.sh "$IMAGE" "$VERSION" "$VARIANT" .build/config.lock.json > .build/tags.txt
           echo "### $NAME" >> "$GITHUB_STEP_SUMMARY"
-          sed 's/^/- `/; s/$/`/' .build/tags.txt >> "$GITHUB_STEP_SUMMARY"
+          while read -r t; do echo "- \`$t\`"; done < .build/tags.txt >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build (amd64, for testing)
         run: |

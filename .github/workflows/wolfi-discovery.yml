@@ -19,12 +19,12 @@ jobs:
         env:
           PATTERN: ${{ inputs.pattern }}
         run: |
-          curl -fsSL https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz | tar -xzO APKINDEX > APKINDEX
+          curl -fsSL https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz | tar -xzO APKINDEX > index.txt
           python3 - <<'PY'
           import collections, os, re, time
           pat = re.compile(os.environ["PATTERN"])
           pkgs, cur = collections.defaultdict(dict), {}
-          for line in open("APKINDEX", encoding="utf-8", errors="replace"):
+          for line in open("index.txt", encoding="utf-8", errors="replace"):
               line = line.rstrip("\n")
               if not line:
                   if cur: pkgs[cur["P"]][cur["V"]] = cur
