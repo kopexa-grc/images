@@ -1,0 +1,22 @@
+# php-apache:*-dev — build-stage variant. Same as runtime plus shell and
+# build tooling (composer, git, Node.js 24). Never deploy this variant.
+contents:
+  packages:
+    - busybox
+    - bash
+    - git
+    - composer
+    - php-{{version}}-phar
+    - nodejs-24
+    - npm
+
+# Build stages typically need to write anywhere.
+accounts:
+  run-as: "0"
+
+entrypoint:
+  command: /bin/sh -l
+
+annotations:
+  org.opencontainers.image.title: php-apache-dev
+  org.opencontainers.image.description: Build-stage variant of php-apache with shell, composer, git and Node.js 24

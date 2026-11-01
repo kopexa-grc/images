@@ -1,0 +1,17 @@
+# restic: encrypted, deduplicated backups to S3/B2/Azure/GCS/SFTP/REST.
+# Includes busybox so that backup jobs can chain init/backup/forget.
+contents:
+  packages:
+    - restic
+    - busybox
+
+entrypoint:
+  command: /usr/bin/restic
+work-dir: /home/nonroot
+environment:
+  HOME: /home/nonroot
+  RESTIC_CACHE_DIR: /tmp/restic-cache
+
+annotations:
+  org.opencontainers.image.title: restic
+  org.opencontainers.image.description: restic backup client on Wolfi, non-root

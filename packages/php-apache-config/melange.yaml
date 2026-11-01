@@ -1,0 +1,29 @@
+# Hardened Apache httpd + PHP configuration for running mod_php as non-root
+# in containers. Built by CI with an ephemeral signing key and consumed only
+# by images/php-apache; it is not published as a standalone package.
+package:
+  name: kopexa-php-apache-config
+  version: "1.0.2"
+  epoch: 0
+  description: Hardened httpd and php.ini defaults for non-root container images
+  copyright:
+    - license: Apache-2.0
+  options:
+    no-provides: true
+    no-depends: true
+
+environment:
+  contents:
+    repositories:
+      - https://packages.wolfi.dev/os
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    packages:
+      - busybox
+
+pipeline:
+  - runs: |
+      install -Dm644 httpd.conf      "${{targets.destdir}}/etc/kopexa/httpd/httpd.conf"
+      install -Dm644 healthz         "${{targets.destdir}}/usr/share/kopexa/httpd/healthz"
+      install -Dm644 99-kopexa.ini   "${{targets.destdir}}/etc/php/conf.d/99-kopexa.ini"
+      install -dm755                 "${{targets.destdir}}/etc/kopexa/httpd/conf.d"

@@ -1,0 +1,41 @@
+name: wolfi-discovery
+# Lists package names/versions in the open Wolfi repository
+# (packages.wolfi.dev/os). Use it when bumping PHP/Go/Node or adding
+# extensions. Deliberately reads the index directly instead of using a
+# vendor base image.
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: Regex for package names
+        default: '^(php-8\.[0-9]+|go-1\.[0-9]+|nodejs-[0-9]+|apache2|restic|composer)$'
+permissions:
+  contents: read
+jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Query packages.wolfi.dev/os
+        env:
+          PATTERN: ${{ inputs.pattern }}
+        run: |
+          curl -fsSL https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz | tar -xzO APKINDEX > APKINDEX
+          python3 - <<'PY'
+          import collections, os, re, time
+          pat = re.compile(os.environ["PATTERN"])
+          pkgs, cur = collections.defaultdict(dict), {}
+          for line in open("APKINDEX", encoding="utf-8", errors="replace"):
+              line = line.rstrip("\n")
+              if not line:
+                  if cur: pkgs[cur["P"]][cur["V"]] = cur
+                  cur = {}
+                  continue
+              k, _, v = line.partition(":"); cur[k] = v
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write("| package | newest version | built |\n|---|---|---|\n")
+              for name in sorted(n for n in pkgs if pat.search(n)):
+                  newest = max(pkgs[name].values(), key=lambda p: int(p.get("t", 0)))
+                  built = time.strftime("%Y-%m-%d", time.gmtime(int(newest.get("t", 0))))
+                  print(f"{name:32} {newest['V']:20} {built}")
+                  s.write(f"| {name} | {newest['V']} | {built} |\n")
+          PY

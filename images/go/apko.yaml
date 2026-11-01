@@ -1,0 +1,41 @@
+# go: Go toolchain for build stages, tag-compatible with the official
+# golang image (go:1.27.3, go:1.27, go:1, go:latest).
+#
+#   FROM ghcr.io/kopexa-grc/go:1.27 AS build
+#   ...
+#   RUN CGO_ENABLED=0 go build -trimpath -o /out/app ./cmd/app
+#   FROM ghcr.io/kopexa-grc/static:latest
+#   COPY --from=build /out/app /app
+contents:
+  packages:
+    - go-{{version}}
+    - build-base
+    - git
+    - openssh-client
+    - busybox
+    - bash
+
+# Build stage: root like the official image, so Dockerfiles work unchanged.
+accounts:
+  run-as: "0"
+
+entrypoint:
+  command: /bin/sh -l
+work-dir: /go
+
+environment:
+  GOPATH: /go
+  PATH: /go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  # Never let `go` download a different toolchain behind your back.
+  GOTOOLCHAIN: local
+
+paths:
+  - path: /go
+    type: directory
+    uid: 0
+    gid: 0
+    permissions: 0o1777
+
+annotations:
+  org.opencontainers.image.title: go
+  org.opencontainers.image.description: Go {{version}} toolchain (build stage), built from Wolfi packages with apko

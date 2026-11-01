@@ -1,0 +1,198 @@
+name: build
+
+# Builds every image × version × variant from images/*/image.yaml.
+#
+#   pull_request  -> build, test, scan (nothing is published)
+#   push (main)   -> + publish to GHCR, sign (cosign keyless), attest provenance
+#   schedule      -> daily rebuild to pick up Wolfi security fixes
+#
+# apko builds are reproducible: if no package changed, the digest does not
+# change and the publish step is a no-op for the registry.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  # renovate: datasource=github-releases depName=chainguard-dev/apko
+  APKO_VERSION: v1.4.14
+  # renovate: datasource=github-releases depName=chainguard-dev/melange
+  MELANGE_VERSION: v0.63.2
+  # renovate: datasource=github-releases depName=mikefarah/yq
+  YQ_VERSION: v4.54.1
+  # renovate: datasource=docker depName=anchore/grype
+  GRYPE_IMAGE: anchore/grype:v0.121.0
+  # renovate: datasource=docker depName=goodwithtech/dockle
+  DOCKLE_IMAGE: goodwithtech/dockle:v0.4.15
+
+jobs:
+  packages:
+    name: melange packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+      - name: Install melange
+        run: |
+          v="${MELANGE_VERSION#v}"
+          curl -fsSL -o /tmp/m.tgz "https://github.com/chainguard-dev/melange/releases/download/${MELANGE_VERSION}/melange_${v}_linux_amd64.tar.gz"
+          curl -fsSL "https://github.com/chainguard-dev/melange/releases/download/${MELANGE_VERSION}/checksums.txt" \
+            | grep " melange_${v}_linux_amd64.tar.gz$" | sed 's#  .*#  /tmp/m.tgz#' | sha256sum -c -
+          sudo tar -xzf /tmp/m.tgz -C /usr/local/bin --strip-components=1 "melange_${v}_linux_amd64/melange"
+      - name: Build packages (ephemeral signing key)
+        run: |
+          # The key only signs the local repository consumed by apko in this
+          # workflow run; packages are not published on their own.
+          mkdir -p .build
+          melange keygen .build/local-melange.rsa
+          for pkg in packages/*/melange.yaml; do
+            melange build "$pkg" --arch x86_64,aarch64 --runner docker \
+              --signing-key .build/local-melange.rsa --out-dir .build/packages \
+              --source-dir "$(dirname "$pkg")"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: melange-packages
+          path: |
+            .build/packages
+            .build/local-melange.rsa.pub
+          retention-days: 3
+
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+      - id: m
+        run: echo "matrix=$(scripts/matrix.sh)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.image }}${{ matrix.version && format(':{0}', matrix.version) }}${{ matrix.variant && format('-{0}', matrix.variant) }}
+    needs: [packages, matrix]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    permissions:
+      contents: read
+      packages: write       # push to GHCR
+      id-token: write       # cosign keyless + provenance
+      attestations: write   # GitHub build provenance
+    env:
+      IMAGE: ${{ matrix.image }}
+      VERSION: ${{ matrix.version }}
+      VARIANT: ${{ matrix.variant }}
+      NAME: ${{ matrix.image }}${{ matrix.variant && format('-{0}', matrix.variant) }}
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: melange-packages
+          path: .build
+
+      - name: Render config and lock package versions
+        run: |
+          scripts/render.sh "$IMAGE" "$VERSION" "$VARIANT" > .build/config.yaml
+          apko lock .build/config.yaml --output .build/config.lock.json \
+            -r "$PWD/.build/packages" -k .build/local-melange.rsa.pub
+          scripts/tags.sh "$IMAGE" "$VERSION" "$VARIANT" .build/config.lock.json > .build/tags.txt
+          echo "### $NAME" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/- `/; s/$/`/' .build/tags.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build (amd64, for testing)
+        run: |
+          apko build .build/config.yaml "kopexa/$NAME:ci" .build/image.tar --arch x86_64 \
+            --lockfile .build/config.lock.json \
+            -r "$PWD/.build/packages" -k .build/local-melange.rsa.pub --sbom-path .build/sbom
+          docker load -i .build/image.tar
+
+      - name: Test
+        run: '"images/$IMAGE/tests/test.sh" "kopexa/$NAME:ci-amd64" "${VARIANT:-$VERSION}"'
+
+      - name: Vulnerability gate (high/critical with a fix available)
+        run: |
+          docker run --rm -v "$PWD/.build:/w" "$GRYPE_IMAGE" docker-archive:/w/image.tar \
+            --only-fixed --fail-on high -o table
+
+      - name: CIS Docker benchmark (dockle)
+        # CIS-DI-0005: content trust is replaced by cosign signatures.
+        # CIS-DI-0006: HEALTHCHECK is not part of the OCI spec apko emits;
+        #              use Kubernetes probes instead.
+        run: |
+          docker run --rm -v "$PWD/.build:/w" "$DOCKLE_IMAGE" --input /w/image.tar \
+            --exit-code 1 --exit-level warn -i CIS-DI-0005 -i CIS-DI-0006
+
+      - name: License check
+        run: |
+          scripts/licenses.sh .build/sbom/sbom-x86_64.spdx.json .build/licenses.md
+          { echo "<details><summary>Licenses ($NAME)</summary>"; echo; cat .build/licenses.md; echo "</details>"; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ env.NAME }}${{ matrix.version && format('-{0}', matrix.version) }}
+          path: |
+            .build/sbom
+            .build/licenses.md
+            .build/config.lock.json
+          retention-days: 30
+
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (all architectures)
+        id: publish
+        if: env.PUBLISH == 'true'
+        run: |
+          refs=()
+          while read -r t; do refs+=("$REGISTRY/$NAME:$t"); done < .build/tags.txt
+          apko publish .build/config.yaml "${refs[@]}" \
+            --lockfile .build/config.lock.json \
+            -r "$PWD/.build/packages" -k .build/local-melange.rsa.pub \
+            --sbom-path .build/sbom-publish --image-refs .build/image-refs.txt
+          ref="$(head -1 .build/image-refs.txt)"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "digest=${ref##*@}" >> "$GITHUB_OUTPUT"
+          echo "Published \`$ref\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        if: env.PUBLISH == 'true'
+
+      - name: Sign and attach SBOM attestations
+        if: env.PUBLISH == 'true'
+        env:
+          REF: ${{ steps.publish.outputs.ref }}
+        run: |
+          cosign sign --yes --recursive "$REF"
+          cosign attest --yes --type spdxjson \
+            --predicate .build/sbom-publish/sbom-index.spdx.json "$REF"
+
+      - name: Build provenance (SLSA)
+        if: env.PUBLISH == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.NAME }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true

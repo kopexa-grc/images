@@ -1,0 +1,76 @@
+# php-apache: Apache httpd 2.4 + mod_php {{version}} (prefork), non-root, port 8080.
+# Merged with images/_base/base.apko.yaml by scripts/render.sh.
+contents:
+  packages:
+    - kopexa-php-apache-config
+    - apache2
+    - php-{{version}}
+    - php-{{version}}-apache
+    # Extensions: a broad "web app" set (Symfony/Laravel/Mautic compatible).
+    - php-{{version}}-amqp
+    - php-{{version}}-apcu
+    - php-{{version}}-bcmath
+    - php-{{version}}-ctype
+    - php-{{version}}-curl
+    - php-{{version}}-dom
+    - php-{{version}}-exif
+    - php-{{version}}-fileinfo
+    - php-{{version}}-gd
+    - php-{{version}}-iconv
+    - php-{{version}}-intl
+    - php-{{version}}-mbstring
+    - php-{{version}}-mysqli
+    - php-{{version}}-mysqlnd
+    - php-{{version}}-opcache
+    - php-{{version}}-openssl
+    - php-{{version}}-pcntl
+    - php-{{version}}-pdo
+    - php-{{version}}-pdo_mysql
+    - php-{{version}}-posix
+    - php-{{version}}-simplexml
+    - php-{{version}}-sockets
+    - php-{{version}}-sodium
+    - php-{{version}}-xml
+    - php-{{version}}-xmlreader
+    - php-{{version}}-xmlwriter
+    - php-{{version}}-zip
+
+entrypoint:
+  command: /usr/bin/httpd -DFOREGROUND -f /etc/kopexa/httpd/httpd.conf
+stop-signal: SIGWINCH
+work-dir: /app
+
+environment:
+  APACHE_LISTEN_PORT: "8080"
+  APACHE_DOCUMENT_ROOT: /app/public
+  APACHE_ALLOW_OVERRIDE: None
+  APACHE_DOCROOT_OPTIONS: -Indexes +SymLinksIfOwnerMatch
+  APACHE_START_SERVERS: "2"
+  APACHE_MIN_SPARE_SERVERS: "2"
+  APACHE_MAX_SPARE_SERVERS: "5"
+  APACHE_MAX_REQUEST_WORKERS: "25"
+  APACHE_MAX_CONNECTIONS_PER_CHILD: "1000"
+  APACHE_LOG_LEVEL: warn
+  APACHE_TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+  PHP_MEMORY_LIMIT: 256M
+  PHP_MAX_EXECUTION_TIME: "60"
+  PHP_UPLOAD_MAX_FILESIZE: 32M
+  PHP_POST_MAX_SIZE: 32M
+  PHP_DATE_TIMEZONE: UTC
+  PHP_OPCACHE_MEMORY: "128"
+
+paths:
+  # suexec is setuid root and unused (we never switch users) — drop the bit
+  # (CIS Docker 4.8 / dockle CIS-DI-0008).
+  - path: /usr/bin/suexec
+    type: permissions
+    permissions: 0o755
+  - path: /app/public
+    type: directory
+    uid: 0
+    gid: 0
+    permissions: 0o755
+
+annotations:
+  org.opencontainers.image.title: php-apache
+  org.opencontainers.image.description: Hardened Apache httpd + mod_php {{version}}, non-root, built from Wolfi packages with apko

@@ -1,0 +1,5 @@
+# Build matrix metadata, read by scripts/matrix.sh and scripts/tags.sh.
+versions: ["8.4"]          # each entry is substituted for {{version}} in apko configs
+latest: "8.4"              # gets the "8" / "latest" tags
+version-package: php-{{version}}   # tags are derived from this package's version
+variants: ["", "dev"]      # "" = runtime (apko.yaml), "dev" = apko.yaml + apko.dev.yaml

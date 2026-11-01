@@ -1,0 +1,4 @@
+versions: [""]
+latest: ""
+version-package: restic
+variants: [""]

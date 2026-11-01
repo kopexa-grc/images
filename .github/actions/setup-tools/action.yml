@@ -1,0 +1,19 @@
+name: setup-tools
+description: Install apko and yq (versions from workflow env), verified by checksum.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        v="${APKO_VERSION#v}"
+        curl -fsSL -o /tmp/apko.tgz "https://github.com/chainguard-dev/apko/releases/download/${APKO_VERSION}/apko_${v}_linux_amd64.tar.gz"
+        curl -fsSL "https://github.com/chainguard-dev/apko/releases/download/${APKO_VERSION}/checksums.txt" \
+          | grep " apko_${v}_linux_amd64.tar.gz$" | sed 's#  .*#  /tmp/apko.tgz#' | sha256sum -c -
+        sudo tar -xzf /tmp/apko.tgz -C /usr/local/bin --strip-components=1 "apko_${v}_linux_amd64/apko"
+
+        curl -fsSL -o /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+        curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums-bsd" \
+          | grep '^SHA256 (yq_linux_amd64) = ' | sed 's/.* = //; s#$#  /tmp/yq#' | sha256sum -c -
+        sudo install -m755 /tmp/yq /usr/local/bin/yq
+        apko version | grep GitVersion; yq --version

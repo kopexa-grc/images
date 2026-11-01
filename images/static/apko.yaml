@@ -1,0 +1,9 @@
+# static: minimal runtime for statically linked binaries (CGO_ENABLED=0 Go,
+# Rust musl, ...). Contains only base layout, CA certificates, tzdata and the
+# nonroot user — no shell, no package manager, no libc.
+contents:
+  packages: []
+
+annotations:
+  org.opencontainers.image.title: static
+  org.opencontainers.image.description: Minimal non-root runtime for static binaries, built from Wolfi packages with apko

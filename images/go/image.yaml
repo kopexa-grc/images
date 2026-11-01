@@ -1,0 +1,5 @@
+# Follows the Go release policy: the two most recent minor versions.
+versions: ["1.27", "1.26"]
+latest: "1.27"
+version-package: go-{{version}}
+variants: [""]

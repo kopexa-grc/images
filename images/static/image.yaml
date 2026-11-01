@@ -1,0 +1,5 @@
+# No versioned package: published as :latest (plus a dated tag).
+versions: [""]
+latest: ""
+version-package: ""
+variants: [""]

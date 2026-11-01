@@ -1,0 +1,54 @@
+name: cleanup
+
+# Deletes old image versions from GHCR that are referenced ONLY by dated tags
+# (e.g. 8.4.27-20260101). Versions that still carry a moving tag (8.4, latest,
+# 8.4.27, ...) and untagged signature/attestation manifests are never touched.
+
+on:
+  schedule:
+    - cron: "41 5 * * 0"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only print what would be deleted
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  KEEP_DAYS: "180"
+  DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry-run }}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Delete expired dated-only versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          cutoff="$(date -u -d "-${KEEP_DAYS} days" +%s)"
+          for dir in images/*/; do
+            img="$(basename "$dir")"; [[ "$img" == _base ]] && continue
+            for name in "$img" "$img-dev"; do
+              gh api "/orgs/$ORG/packages/container/$name/versions" --paginate 2>/dev/null \
+                --jq '.[] | [.id, .created_at, (.metadata.container.tags | join(","))] | @tsv' \
+              | while IFS=$'\t' read -r id created tags; do
+                  [[ -z "$tags" ]] && continue                       # signatures etc.
+                  [[ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]] || continue
+                  only_dated=true
+                  for t in ${tags//,/ }; do
+                    [[ "$t" =~ ^([0-9.]+-)?[0-9]{8}(-[a-z]+)?$ ]] || only_dated=false
+                  done
+                  $only_dated || continue
+                  echo "delete $name version $id ($tags, $created)"
+                  [[ "$DRY_RUN" == "true" ]] || gh api -X DELETE "/orgs/$ORG/packages/container/$name/versions/$id"
+                done
+            done
+          done
