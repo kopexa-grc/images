@@ -4,7 +4,7 @@ source "$(dirname "$0")/../../../scripts/lib-test.sh"
 variant="${3:-}"
 
 for ext in apcu bcmath ctype curl dom exif fileinfo gd iconv intl mbstring mysqli \
-           openssl pcntl PDO pdo_mysql posix SimpleXML sockets sodium xml zip "Zend OPcache"; do
+           openssl pcntl PDO pdo_mysql posix redis SimpleXML sockets sodium xml zip "Zend OPcache"; do
   run --entrypoint /usr/bin/php "$IMG" -m | grep -qx "$ext" || fail "php extension missing: $ext"
 done
 pass "php extensions present"
@@ -40,3 +40,17 @@ code() { curl -s -o /dev/null -w '%{http_code}' -X "${2:-GET}" "localhost:$port$
 [[ "$(code / PROPFIND)" == 403 ]] && pass "uncommon methods denied" || fail "PROPFIND allowed"
 curl -sI "localhost:$port/" | grep -qi '^server: apache\s*$' && pass "no version in Server header" || fail "Server header leaks version"
 ! curl -sI "localhost:$port/" | grep -qi '^x-powered-by' && pass "no X-Powered-By" || fail "X-Powered-By present"
+
+# Sessions: files by default, Redis/Valkey when configured (shared between replicas).
+[[ "$(run --entrypoint /usr/bin/php "$IMG" -r 'echo ini_get("session.save_handler"), " ", ini_get("session.save_path");')" == "files /tmp" ]] \
+  && pass "sessions default to files in /tmp" || fail "session defaults"
+net="php-session-test-$$"
+docker network create "$net" >/dev/null
+docker run -d --rm --name "$net-valkey" --network "$net" "${VALKEY_TEST_IMAGE:-valkey/valkey:9.0-alpine}" valkey-server --requirepass s3cret >/dev/null
+sleep 2
+got="$(run --network "$net" -e PHP_SESSION_SAVE_HANDLER=redis -e "PHP_SESSION_SAVE_PATH=tcp://$net-valkey:6379?auth=s3cret" \
+  --entrypoint /usr/bin/php "$IMG" -r 'session_start(); $id = session_id(); $_SESSION["n"] = 42; session_write_close();
+    $_SESSION = []; session_id($id); session_start(); echo $_SESSION["n"] ?? "lost";' 2>&1 || true)"
+docker rm -f "$net-valkey" >/dev/null 2>&1; docker network rm "$net" >/dev/null 2>&1
+[[ "$got" == 42 ]] && pass "sessions in Valkey (php-redis)" || fail "redis sessions: $got"
+

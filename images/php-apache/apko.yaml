@@ -27,6 +27,7 @@ contents:
     - php-{{version}}-pdo
     - php-{{version}}-pdo_mysql
     - php-{{version}}-posix
+    - php-{{version}}-redis
     - php-{{version}}-simplexml
     - php-{{version}}-sockets
     - php-{{version}}-sodium
@@ -57,6 +58,10 @@ environment:
   PHP_UPLOAD_MAX_FILESIZE: 32M
   PHP_POST_MAX_SIZE: 32M
   PHP_DATE_TIMEZONE: UTC
+  # Session storage: files in /tmp (one pod) or e.g. redis with
+  # tcp://valkey:6379?auth=... (shared between replicas).
+  PHP_SESSION_SAVE_HANDLER: files
+  PHP_SESSION_SAVE_PATH: /tmp
   PHP_OPCACHE_MEMORY: "128"
 
 paths:

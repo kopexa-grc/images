@@ -24,6 +24,7 @@ can pin `8.4.27` or `1.27.3` — not just `latest`.
 | `ghcr.io/kopexa-grc/go` | `1.27-fips`, `1.27.x-fips`, `latest-fips`, `1.26-fips`, … | Same, building against the **CMVP-validated Go Cryptographic Module** with FIPS 140-3 mode on by default |
 | `ghcr.io/kopexa-grc/static` | `latest` | Runtime for static binaries: no shell, no libc, no package manager |
 | `ghcr.io/kopexa-grc/restic` | `0.19`, `0.19.x`, `latest` | restic backup client (+ busybox for job scripting) |
+| `ghcr.io/kopexa-grc/valkey` | `9.1`, `9.1.x`, `latest` | Valkey (Redis-compatible) for caches and sessions, with `valkey-cli` |
 
 Every build also gets an immutable dated tag, e.g. `8.4.27-20261101`.
 

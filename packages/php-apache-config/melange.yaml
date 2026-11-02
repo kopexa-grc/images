@@ -3,7 +3,7 @@
 # by images/php-apache; it is not published as a standalone package.
 package:
   name: kopexa-php-apache-config
-  version: "1.0.2"
+  version: "1.0.3"
   epoch: 0
   description: Hardened httpd and php.ini defaults for non-root container images
   copyright:

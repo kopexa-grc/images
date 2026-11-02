@@ -1,0 +1,26 @@
+# Valkey: in-memory key-value store (Redis-compatible, BSD-3-Clause), for
+# caches and sessions. Non-root; configure via arguments, e.g.
+#   valkey-server --requirepass ... --maxmemory 256mb --save ""
+# valkey-cli is included for health checks (valkey-cli ping).
+#
+# Known exception to "no shell": Wolfi's valkey depends on posix-libc-utils,
+# whose ldd is a bash script, so /usr/bin/bash is present. Nothing in the
+# image uses it; tests/test.sh allows exactly this one and fails on others.
+contents:
+  packages:
+    - valkey
+    - valkey-cli
+
+entrypoint:
+  command: /usr/bin/valkey-server
+work-dir: /data
+paths:
+  - path: /data
+    type: directory
+    uid: 65532
+    gid: 65532
+    permissions: 0o750
+
+annotations:
+  org.opencontainers.image.title: valkey
+  org.opencontainers.image.description: Valkey on Wolfi, non-root, no shell

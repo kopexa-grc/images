@@ -8,7 +8,8 @@
 #   scripts/build-local.sh static
 #
 # Requires: melange, apko, yq, jq, docker.
-# Optional: MELANGE_CACHE_DIR to pre-seed source downloads (offline builds).
+# Optional: MELANGE_CACHE_DIR to pre-seed source downloads (offline builds),
+# PACKAGES="a b" to build only these melange packages (packages/<name>).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
@@ -21,6 +22,7 @@ out=.build; mkdir -p "$out/sbom-$name"
 [[ -f $out/local-melange.rsa ]] || melange keygen "$out/local-melange.rsa" >/dev/null
 for pkg in packages/*/melange.yaml; do
   dir="$(dirname "$pkg")"
+  if [[ -n "${PACKAGES:-}" && " $PACKAGES " != *" $(basename "$dir") "* ]]; then continue; fi
   melange build "$pkg" --arch "$arch" --runner docker ${MELANGE_CACHE_DIR:+--cache-dir "$MELANGE_CACHE_DIR"} \
     --signing-key "$out/local-melange.rsa" --out-dir "$out/packages" --source-dir "$dir" \
     >"$out/melange-$(basename "$dir").log" 2>&1 || { tail -20 "$out/melange-$(basename "$dir").log"; exit 1; }
