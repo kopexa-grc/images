@@ -1,4 +1,4 @@
 versions: [""]
 latest: ""
-version-package: valkey
+version-package: valkey-9.1   # Wolfi ships one package per minor stream
 variants: [""]

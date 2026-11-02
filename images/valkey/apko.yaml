@@ -8,8 +8,8 @@
 # image uses it; tests/test.sh allows exactly this one and fails on others.
 contents:
   packages:
-    - valkey
-    - valkey-cli
+    - valkey-9.1
+    - valkey-9.1-cli
 
 entrypoint:
   command: /usr/bin/valkey-server
