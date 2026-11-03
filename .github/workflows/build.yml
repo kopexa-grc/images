@@ -59,10 +59,16 @@ jobs:
           # workflow run; packages are not published on their own.
           mkdir -p .build
           melange keygen .build/local-melange.rsa
+          # One architecture per call: melange builds the arches of one call
+          # in parallel from the same source dir, and its workspace probe
+          # (a temporary test-dirfs-N file there) races with the other
+          # arch's copy ("open .../test-dirfs-0: no such file or directory").
           for pkg in packages/*/melange.yaml; do
-            melange build "$pkg" --arch x86_64,aarch64 --runner docker \
-              --signing-key .build/local-melange.rsa --out-dir .build/packages \
-              --source-dir "$(dirname "$pkg")"
+            for arch in x86_64 aarch64; do
+              melange build "$pkg" --arch "$arch" --runner docker \
+                --signing-key .build/local-melange.rsa --out-dir .build/packages \
+                --source-dir "$(dirname "$pkg")"
+            done
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
